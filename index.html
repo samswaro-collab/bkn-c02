@@ -127,6 +127,54 @@
             text-align: center;
         }
 
+        /* ── Change Highlighting System ── */
+        [data-since].is-new {
+            outline: 2px solid #f59e0b;
+            outline-offset: 2px;
+            border-radius: 10px;
+            position: relative;
+        }
+        [data-since].is-new::after {
+            content: 'NEW';
+            position: absolute;
+            top: -9px;
+            right: 12px;
+            background: #f59e0b;
+            color: #1c1400;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 3px;
+            letter-spacing: 0.6px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .whats-new-bar {
+            display: none;
+            background: linear-gradient(90deg, #92400e 0%, #b45309 100%);
+            color: white;
+            padding: 9px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #d97706;
+        }
+        .whats-new-bar.visible { display: flex; }
+        .whats-new-dismiss {
+            margin-left: auto;
+            background: rgba(255,255,255,0.18);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .whats-new-dismiss:hover { background: rgba(255,255,255,0.28); }
+
         /* ── Main Content ── */
         .main {
             overflow-y: auto;
@@ -730,6 +778,13 @@
     ════════════════════════════ -->
     <div class="main">
 
+        <!-- What's New bar (shown only when new content is detected) -->
+        <div id="whats-new-bar" class="whats-new-bar">
+            <span>&#10024;</span>
+            <span id="whats-new-msg">Updates since your last visit</span>
+            <button class="whats-new-dismiss" onclick="dismissNew()">Got it &#10003;</button>
+        </div>
+
         <div class="header">
             <div>
                 <h1>RTX Corporation — Sales Intelligence Dashboard</h1>
@@ -740,7 +795,7 @@
                 <div style="background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:6px 16px;font-size:11px;color:rgba(255,255,255,0.7);white-space:nowrap;text-align:center;">
                     <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;opacity:0.8;">Last Refreshed</div>
                     <strong id="last-updated" style="font-size:13px;color:rgba(255,255,255,0.95);">April 18, 2026</strong>
-                    <div style="font-size:9px;opacity:0.6;margin-top:2px;letter-spacing:0.3px;">Auto-refreshes 1st &amp; 15th</div>
+                    <div style="font-size:9px;opacity:0.6;margin-top:2px;letter-spacing:0.3px;">Auto-refreshes every 5 days</div>
                 </div>
             </div>
             <!-- Dual logo block -->
@@ -922,8 +977,10 @@
                      MARKET SIGNALS & STRATEGIC INTELLIGENCE
                 ════════════════════════════ -->
 
-                <h2 class="section-title" style="margin: 36px 0 6px; font-size:20px;">📡 Market Signals &amp; Strategic Intelligence</h2>
+                <div data-since="2026-04-18" style="margin-top:36px; margin-bottom:0;">
+                <h2 class="section-title" style="margin: 0 0 6px; font-size:20px;">📡 Market Signals &amp; Strategic Intelligence</h2>
                 <p style="color:#64748b; font-size:13px; margin-bottom:24px;">Account team intelligence: live program signals, hiring inflections, and competitive triggers across all three RTX business units</p>
+                </div>
 
                 <!-- ── COLLINS SIGNALS ── -->
                 <div style="margin-bottom: 28px;">
@@ -4142,7 +4199,7 @@
 
             <!-- ═══════════════ OUTREACH PLAYBOOK ═══════════════ -->
             <div id="outreach" class="section-content">
-                <div class="section-header">
+                <div class="section-header" data-since="2026-04-18">
                     <div class="section-color-bar" style="background:#10b981;"></div>
                     <div>
                         <h2 class="section-title">Cold Outreach Playbook &mdash; RTX Account</h2>
@@ -4520,22 +4577,66 @@
 </div><!-- /container -->
 
 <script>
-    // ── Role check (set by beakon_hub.html via sessionStorage) ──
-    var _beakonRole = (function() {
-        try { return JSON.parse(sessionStorage.getItem('beakon_session') || '{}').role || ''; } catch(e) { return ''; }
+    // ── Change Highlighting System ──
+    (function() {
+        var STORE_KEY = 'beakon_rtx_last_visit';
+        var today     = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+        var lastVisit = localStorage.getItem(STORE_KEY) || '1970-01-01';
+
+        // Find all tagged elements and highlight those newer than last visit
+        var tagged = document.querySelectorAll('[data-since]');
+        var newCount = 0;
+        tagged.forEach(function(el) {
+            var since = el.getAttribute('data-since');
+            if (since && since > lastVisit) {
+                el.classList.add('is-new');
+                newCount++;
+            }
+        });
+
+        // Show banner if there are new items
+        if (newCount > 0) {
+            var bar = document.getElementById('whats-new-bar');
+            var msg = document.getElementById('whats-new-msg');
+            if (bar && msg) {
+                var lv = lastVisit === '1970-01-01' ? 'your first visit' : (function() {
+                    var d = new Date(lastVisit + 'T12:00:00');
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                })();
+                msg.textContent = newCount + ' update' + (newCount !== 1 ? 's' : '') + ' since ' + lv;
+                bar.classList.add('visible');
+            }
+        }
+
+        // Mark as seen after 8 seconds (gives user time to see highlights)
+        setTimeout(function() { localStorage.setItem(STORE_KEY, today); }, 8000);
     })();
 
-    // Show admin-only sidebar items
-    if (_beakonRole === 'admin') {
+    function dismissNew() {
+        var bar = document.getElementById('whats-new-bar');
+        if (bar) bar.classList.remove('visible');
+        document.querySelectorAll('.is-new').forEach(function(el) { el.classList.remove('is-new'); });
+        localStorage.setItem('beakon_rtx_last_visit', new Date().toISOString().slice(0, 10));
+    }
+
+    // ── Session check (set by beakon_hub.html via sessionStorage) ──
+    var _beakonSession = (function() {
+        try { return JSON.parse(sessionStorage.getItem('beakon_session') || '{}'); } catch(e) { return {}; }
+    })();
+    var _beakonRole          = _beakonSession.role          || '';
+    var _beakonClearance     = _beakonSession.clearanceAccess === true;
+
+    // Show Clearance Landscape only if explicitly granted by admin
+    if (_beakonClearance) {
         var wrap = document.getElementById('clearance-nav-wrap');
         if (wrap) wrap.style.display = 'block';
     }
 
     // ── Section switching ──
     function switchSection(sectionId) {
-        // Guard: Clearance Landscape is admin-only
-        if (sectionId === 'cleared-jobs' && _beakonRole !== 'admin') {
-            return; // silently block non-admin access
+        // Guard: Clearance Landscape requires explicit clearanceAccess grant
+        if (sectionId === 'cleared-jobs' && !_beakonClearance) {
+            return; // silently block — section is invisible, this is a double-lock
         }
         document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.sidebar-item').forEach(l => l.classList.remove('active'));
