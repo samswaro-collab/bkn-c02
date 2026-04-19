@@ -4577,6 +4577,38 @@
 </div><!-- /container -->
 
 <script>
+    // ── Auth Guard ──
+    // Blocks direct github.io access and requires a valid hub token.
+    (function() {
+        var HUB     = 'https://www.salesbeakon.com';
+        var TOKEN   = 'rkn5v8n2j6h3f0d4s9a7l1';
+        var LS_KEY  = 'beakon_rtx_gate';
+        var LS_TTL  = 7 * 24 * 60 * 60 * 1000; // 7 days
+        var host    = window.location.hostname;
+
+        // Always redirect github.io to hub
+        if (host.indexOf('github.io') !== -1) {
+            window.location.replace(HUB); return;
+        }
+
+        // Check URL token (fresh from hub) or valid localStorage pass
+        var params   = new URLSearchParams(window.location.search);
+        var urlToken = params.get('t');
+        var stored   = null;
+        try { stored = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e) {}
+
+        var ok = false;
+        if (urlToken === TOKEN) {
+            localStorage.setItem(LS_KEY, JSON.stringify({ expires: Date.now() + LS_TTL }));
+            ok = true;
+            history.replaceState(null, '', window.location.pathname); // clean URL
+        } else if (stored && stored.expires > Date.now()) {
+            ok = true;
+        }
+
+        if (!ok) { window.location.replace(HUB); }
+    })();
+
     // ── Change Highlighting System ──
     (function() {
         var STORE_KEY = 'beakon_rtx_last_visit';
